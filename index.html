@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Base-10 Addition/Subtraction</title>
+<title>Base-10 Addition/Subtraction with Regrouping</title>
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -67,7 +67,7 @@ input, button, select {
 .column {
   flex:1;
   display:flex;
-  flex-direction:column;
+  flex-direction:row;
   align-items:flex-start;
   border-left:1px solid #333;
   min-height: 250px;
@@ -94,14 +94,14 @@ input, button, select {
 
 #equation {
   margin-top:40px;
-  font-size:40px; /* bigger for easier writing */
+  font-size:36px;
   text-align:center;
 }
 </style>
 </head>
 <body>
 
-<h2>Base-10 Addition/Subtraction</h2>
+<h2>Base-10 Addition/Subtraction with Regrouping</h2>
 
 <div id="controls">
   <label>Problem: <input type="text" id="problemInput" value="246 + 175"></label>
@@ -126,7 +126,7 @@ input, button, select {
 </div>
 
 <div id="equation">
-  246 + 175 = ___ + ___ + ___
+  ___ ___ ___ + ___ ___ ___ = ___ ___ ___
 </div>
 
 <script>
@@ -146,7 +146,6 @@ let currentRow = 1; // 1 = first number, 2 = second number
 
 function clearBoard() {
   Object.values(cols).forEach(col => col.innerHTML = '<div class="column-label">'+col.querySelector('.column-label').innerText+'</div>');
-  updateEquation();
 }
 
 // --- Get or create row container ---
@@ -165,17 +164,69 @@ function addBlockToColumn(type){
   const block = document.createElement('div');
   block.classList.add('block', type);
   block.dataset.value = type==='flat'?100:type==='rod'?10:1;
-  block.innerText = ''; // click to reveal
+  block.innerText = ''; // start blank
 
   // Click to reveal
   block.addEventListener('click', ()=>{
     if(block.innerText==='') block.innerText = block.dataset.value;
-    updateEquation();
+  });
+
+  // Drag & drop for regrouping
+  block.draggable = true;
+  block.addEventListener('dragstart', e=>{
+    e.dataTransfer.setData('text/plain', JSON.stringify({type:block.className.split(' ')[1], row:currentRow}));
   });
 
   const rowContainer = getRowContainer(cols[type]);
   rowContainer.appendChild(block);
 }
+
+// --- Column drop behavior for regrouping ---
+Object.values(cols).forEach(col => {
+  col.addEventListener('dragover', e=>e.preventDefault());
+  col.addEventListener('drop', e=>{
+    e.preventDefault();
+    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    const oldType = data.type;
+    const row = data.row;
+    const targetType = col.id==='hundredsCol'?'flat':col.id==='tensCol'?'rod':'unit';
+
+    const oldCol = cols[oldType];
+    const rowContainer = oldCol.querySelector(`.row${row}`);
+    const blocks = Array.from(rowContainer.querySelectorAll(`.${oldType}`));
+
+    // --- Regrouping logic ---
+    if(oldType === targetType) return; // do nothing if same type
+
+    if(oldType==='unit' && targetType==='rod'){
+      // 10 ones → 1 ten
+      if(blocks.length >= 10){
+        // remove 10 ones
+        for(let i=0;i<10;i++) blocks[i].remove();
+        // add 1 ten
+        addBlockToColumn('rod');
+      }
+    } else if(oldType==='rod' && targetType==='unit'){
+      // 1 ten → 10 ones
+      if(blocks.length >= 1){
+        blocks[0].remove();
+        for(let i=0;i<10;i++) addBlockToColumn('unit');
+      }
+    } else if(oldType==='rod' && targetType==='flat'){
+      // 10 tens → 1 hundred
+      if(blocks.length >= 10){
+        for(let i=0;i<10;i++) blocks[i].remove();
+        addBlockToColumn('flat');
+      }
+    } else if(oldType==='flat' && targetType==='rod'){
+      // 1 hundred → 10 tens
+      if(blocks.length >=1){
+        blocks[0].remove();
+        for(let i=0;i<10;i++) addBlockToColumn('rod');
+      }
+    }
+  });
+});
 
 // --- Available block click ---
 availableBlocks.forEach(b => {
@@ -185,30 +236,12 @@ availableBlocks.forEach(b => {
   });
 });
 
-// --- Update equation dynamically ---
-function updateEquation() {
-  const problem = problemInput.value;
-  const opSymbol = operationSelect.value==='add'?'+':'-';
-
-  const hundreds = cols.flat.querySelectorAll('.row-blocks .block').length;
-  const tens = cols.rod.querySelectorAll('.row-blocks .block').length;
-  const ones = cols.unit.querySelectorAll('.row-blocks .block').length;
-
-  // Extract numbers from problem input
-  const numbers = problem.match(/\d+/g) || [];
-  const n1 = numbers[0] || '___';
-  const n2 = numbers[1] || '___';
-
-  document.getElementById('equation').innerText = `${n1} ${opSymbol} ${n2} = ${hundreds*100 + tens*10 + ones}`;
-}
-
 // --- Setup button ---
 setupBtn.addEventListener('click', ()=>{
   clearBoard();
   currentRow = 1;
-  const problem = problemInput.value;
-  const opSymbol = operationSelect.value==='add'?'+':'-';
-  document.getElementById('equation').innerText = problem.replace(/\d+/g,'___');
+  // Leave equation blank for manual writing
+  document.getElementById('equation').innerText = problemInput.value.replace(/\d+/g,'___');
 });
 
 // --- Switch row button ---
@@ -219,3 +252,4 @@ switchRowBtn.addEventListener('click', ()=>{
 
 </body>
 </html>
+
