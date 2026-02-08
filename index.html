@@ -67,7 +67,7 @@ input, button, select {
 .column {
   flex:1;
   display:flex;
-  flex-direction:row;
+  flex-direction:column;
   align-items:flex-start;
   border-left:1px solid #333;
   min-height: 250px;
@@ -94,7 +94,7 @@ input, button, select {
 
 #equation {
   margin-top:40px;
-  font-size:36px;
+  font-size:32px;
   text-align:center;
 }
 </style>
@@ -126,7 +126,7 @@ input, button, select {
 </div>
 
 <div id="equation">
-  ___ ___ ___ + ___ ___ ___ = ___ ___ ___
+  ___ + ___ = ___
 </div>
 
 <script>
@@ -144,6 +144,7 @@ const cols = {
 
 let currentRow = 1; // 1 = first number, 2 = second number
 
+// --- Clear board ---
 function clearBoard() {
   Object.values(cols).forEach(col => col.innerHTML = '<div class="column-label">'+col.querySelector('.column-label').innerText+'</div>');
 }
@@ -164,7 +165,7 @@ function addBlockToColumn(type){
   const block = document.createElement('div');
   block.classList.add('block', type);
   block.dataset.value = type==='flat'?100:type==='rod'?10:1;
-  block.innerText = ''; // start blank
+  block.innerText = '';
 
   // Click to reveal
   block.addEventListener('click', ()=>{
@@ -181,7 +182,7 @@ function addBlockToColumn(type){
   rowContainer.appendChild(block);
 }
 
-// --- Column drop behavior for regrouping ---
+// --- Column drop behavior ---
 Object.values(cols).forEach(col => {
   col.addEventListener('dragover', e=>e.preventDefault());
   col.addEventListener('drop', e=>{
@@ -190,39 +191,35 @@ Object.values(cols).forEach(col => {
     const oldType = data.type;
     const row = data.row;
     const targetType = col.id==='hundredsCol'?'flat':col.id==='tensCol'?'rod':'unit';
+    const rowContainer = col.querySelector(`.row${row}`) || (()=>{
+      let rc = document.createElement('div');
+      rc.classList.add('row-blocks','row'+row);
+      col.appendChild(rc);
+      return rc;
+    })();
 
-    const oldCol = cols[oldType];
-    const rowContainer = oldCol.querySelector(`.row${row}`);
-    const blocks = Array.from(rowContainer.querySelectorAll(`.${oldType}`));
+    if(oldType === targetType) return; // same type, do nothing
 
-    // --- Regrouping logic ---
-    if(oldType === targetType) return; // do nothing if same type
+    const op = operationSelect.value;
 
-    if(oldType==='unit' && targetType==='rod'){
-      // 10 ones → 1 ten
-      if(blocks.length >= 10){
-        // remove 10 ones
-        for(let i=0;i<10;i++) blocks[i].remove();
-        // add 1 ten
-        addBlockToColumn('rod');
+    // --- Regrouping ---
+    if(op==='add'){
+      // If moving smaller → bigger (1s → 10s, 10s → 100s)
+      const count = oldType==='unit'?10:oldType==='rod'?10:1;
+      const newType = oldType==='unit'?'rod':oldType==='rod'?'flat':null;
+      if(newType){
+        for(let i=0;i<count;i++) addBlockToColumn(newType);
+        const draggedBlock = document.querySelector(`.${oldType}.row${row}`);
+        if(draggedBlock) draggedBlock.remove();
       }
-    } else if(oldType==='rod' && targetType==='unit'){
-      // 1 ten → 10 ones
-      if(blocks.length >= 1){
-        blocks[0].remove();
-        for(let i=0;i<10;i++) addBlockToColumn('unit');
-      }
-    } else if(oldType==='rod' && targetType==='flat'){
-      // 10 tens → 1 hundred
-      if(blocks.length >= 10){
-        for(let i=0;i<10;i++) blocks[i].remove();
-        addBlockToColumn('flat');
-      }
-    } else if(oldType==='flat' && targetType==='rod'){
-      // 1 hundred → 10 tens
-      if(blocks.length >=1){
-        blocks[0].remove();
-        for(let i=0;i<10;i++) addBlockToColumn('rod');
+    } else if(op==='subtract'){
+      // If moving bigger → smaller (10s → 1s, 100s → 10s)
+      const count = oldType==='rod'?10:oldType==='flat'?10:1;
+      const newType = oldType==='rod'?'unit':oldType==='flat'?'rod':null;
+      if(newType){
+        for(let i=0;i<count;i++) addBlockToColumn(newType);
+        const draggedBlock = document.querySelector(`.${oldType}.row${row}`);
+        if(draggedBlock) draggedBlock.remove();
       }
     }
   });
@@ -236,15 +233,14 @@ availableBlocks.forEach(b => {
   });
 });
 
-// --- Setup button ---
+// --- Setup ---
 setupBtn.addEventListener('click', ()=>{
   clearBoard();
   currentRow = 1;
-  // Leave equation blank for manual writing
   document.getElementById('equation').innerText = problemInput.value.replace(/\d+/g,'___');
 });
 
-// --- Switch row button ---
+// --- Switch row ---
 switchRowBtn.addEventListener('click', ()=>{
   currentRow = currentRow===1?2:1;
 });
