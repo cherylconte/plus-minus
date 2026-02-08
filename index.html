@@ -67,7 +67,7 @@ input, button, select {
 .column {
   flex:1;
   display:flex;
-  flex-direction:column;
+  flex-direction:row;
   align-items:flex-start;
   border-left:1px solid #333;
   min-height: 250px;
@@ -195,25 +195,29 @@ Object.values(cols).forEach(col => {
     const rowContainer = oldCol.querySelector(`.row${row}`);
     const blocks = Array.from(rowContainer.querySelectorAll(`.${oldType}`));
 
-    // --- Regrouping logic ---
     if(oldType === targetType) return; // do nothing if same type
 
+    // --- Regrouping logic ---
     if(oldType==='unit' && targetType==='rod'){
+      // ones → tens
       if(blocks.length >= 10){
         for(let i=0;i<10;i++) blocks[i].remove();
         addBlockToColumn('rod');
       }
     } else if(oldType==='rod' && targetType==='unit'){
+      // tens → ones
       if(blocks.length >= 1){
         blocks[0].remove();
         for(let i=0;i<10;i++) addBlockToColumn('unit');
       }
     } else if(oldType==='rod' && targetType==='flat'){
+      // tens → hundreds
       if(blocks.length >= 10){
         for(let i=0;i<10;i++) blocks[i].remove();
         addBlockToColumn('flat');
       }
     } else if(oldType==='flat' && targetType==='rod'){
+      // hundreds → tens
       if(blocks.length >=1){
         blocks[0].remove();
         for(let i=0;i<10;i++) addBlockToColumn('rod');
