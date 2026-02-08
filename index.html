@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base-10 Addition/Subtraction</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin:0; padding:0;
+  background: #f9f9f9;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  min-height: 100vh;
+}
+
+h2 { margin: 20px 0; text-align:center; }
+
+#controls {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+input, button, select {
+  font-size: 16px;
+  padding: 5px 10px;
+}
+
+#availableBlocks {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.block {
+  cursor: pointer;
+  user-select: none;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-weight:bold;
+  color:#fff;
+  border-radius:4px;
+  transition: transform 0.1s;
+}
+
+.flat { background:#f06; width:200px; height:200px; }
+.rod  { background:#0a0; width:20px; height:200px; }
+.unit { background:#06f; width:20px; height:20px; }
+
+#board {
+  display:flex;
+  gap:20px;
+  border:2px solid #333;
+  background:#fff;
+  padding:20px 10px 60px 10px;
+  justify-content:flex-start;
+  min-width: 90vw;
+}
+
+.column {
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  border-left:1px solid #333;
+  min-height: 250px;
+  position:relative;
+  flex-wrap: wrap;
+  gap:5px;
+  padding-top:30px;
+}
+.column:first-child { border-left:none; }
+
+.column-label {
+  position:absolute;
+  top:0;
+  width:100%;
+  text-align:center;
+  font-weight:bold;
+}
+
+.row-blocks {
+  display:flex;
+  gap:5px;
+  margin-bottom:5px;
+}
+
+#equation {
+  margin-top:40px;
+  font-size:40px; /* bigger for easier writing */
+  text-align:center;
+}
+</style>
+</head>
+<body>
+
+<h2>Base-10 Addition/Subtraction</h2>
+
+<div id="controls">
+  <label>Problem: <input type="text" id="problemInput" value="246 + 175"></label>
+  <button id="setup">Set Up</button>
+  <button id="switchRow">Switch Number</button>
+  <select id="operation">
+    <option value="add">Addition</option>
+    <option value="subtract">Subtraction</option>
+  </select>
+</div>
+
+<div id="availableBlocks">
+  <div class="block flat" data-value="100">100</div>
+  <div class="block rod" data-value="10">10</div>
+  <div class="block unit" data-value="1">1</div>
+</div>
+
+<div id="board">
+  <div class="column" id="hundredsCol"><div class="column-label">Hundreds</div></div>
+  <div class="column" id="tensCol"><div class="column-label">Tens</div></div>
+  <div class="column" id="onesCol"><div class="column-label">Ones</div></div>
+</div>
+
+<div id="equation">
+  246 + 175 = ___ + ___ + ___
+</div>
+
+<script>
+const problemInput = document.getElementById('problemInput');
+const setupBtn = document.getElementById('setup');
+const switchRowBtn = document.getElementById('switchRow');
+const operationSelect = document.getElementById('operation');
+const availableBlocks = document.querySelectorAll('#availableBlocks .block');
+
+const cols = {
+  flat: document.getElementById('hundredsCol'),
+  rod: document.getElementById('tensCol'),
+  unit: document.getElementById('onesCol')
+};
+
+let currentRow = 1; // 1 = first number, 2 = second number
+
+function clearBoard() {
+  Object.values(cols).forEach(col => col.innerHTML = '<div class="column-label">'+col.querySelector('.column-label').innerText+'</div>');
+  updateEquation();
+}
+
+// --- Get or create row container ---
+function getRowContainer(col) {
+  let rowContainer = col.querySelector(`.row${currentRow}`);
+  if(!rowContainer){
+    rowContainer = document.createElement('div');
+    rowContainer.classList.add('row-blocks','row'+currentRow);
+    col.appendChild(rowContainer);
+  }
+  return rowContainer;
+}
+
+// --- Add block to column ---
+function addBlockToColumn(type){
+  const block = document.createElement('div');
+  block.classList.add('block', type);
+  block.dataset.value = type==='flat'?100:type==='rod'?10:1;
+  block.innerText = ''; // click to reveal
+
+  // Click to reveal
+  block.addEventListener('click', ()=>{
+    if(block.innerText==='') block.innerText = block.dataset.value;
+    updateEquation();
+  });
+
+  const rowContainer = getRowContainer(cols[type]);
+  rowContainer.appendChild(block);
+}
+
+// --- Available block click ---
+availableBlocks.forEach(b => {
+  b.addEventListener('click', ()=>{
+    const type = b.classList.contains('flat')?'flat':b.classList.contains('rod')?'rod':'unit';
+    addBlockToColumn(type);
+  });
+});
+
+// --- Update equation dynamically ---
+function updateEquation() {
+  const problem = problemInput.value;
+  const opSymbol = operationSelect.value==='add'?'+':'-';
+
+  const hundreds = cols.flat.querySelectorAll('.row-blocks .block').length;
+  const tens = cols.rod.querySelectorAll('.row-blocks .block').length;
+  const ones = cols.unit.querySelectorAll('.row-blocks .block').length;
+
+  // Extract numbers from problem input
+  const numbers = problem.match(/\d+/g) || [];
+  const n1 = numbers[0] || '___';
+  const n2 = numbers[1] || '___';
+
+  document.getElementById('equation').innerText = `${n1} ${opSymbol} ${n2} = ${hundreds*100 + tens*10 + ones}`;
+}
+
+// --- Setup button ---
+setupBtn.addEventListener('click', ()=>{
+  clearBoard();
+  currentRow = 1;
+  const problem = problemInput.value;
+  const opSymbol = operationSelect.value==='add'?'+':'-';
+  document.getElementById('equation').innerText = problem.replace(/\d+/g,'___');
+});
+
+// --- Switch row button ---
+switchRowBtn.addEventListener('click', ()=>{
+  currentRow = currentRow===1?2:1;
+});
+</script>
+
+</body>
+</html>
